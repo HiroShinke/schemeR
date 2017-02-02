@@ -128,7 +128,7 @@ class TestSchme < Test::Unit::TestCase
     assert_equal t, x
   end
 
-  test "quasiquote: list" do
+    test "quasiquote: list" do
     x = @parser.evalLine("`(a b c)")
     success,s,t = @parser.runParser(@parser.expr,"(a b c)")
     assert_equal t, x
@@ -198,6 +198,27 @@ class TestSchme < Test::Unit::TestCase
     assert_equal t, x
   end
 
+  test "quasiquote: unquote: 4" do
+    x = @parser.evalLine("(setq b 10)")
+    x = @parser.evalLine("`,b")
+    success,s,t = @parser.runParser(@parser.expr,"10")
+    assert_equal t, x
+  end
+
+  test "quasiquote: unquote: 4.1" do
+    x = @parser.evalLine("(setq b '(a b c))")
+    x = @parser.evalLine("`,b")
+    success,s,t = @parser.runParser(@parser.expr,"(a b c)")
+    assert_equal t, x
+  end
+
+  test "quasiquote: unquote: 4.2" do
+    x = @parser.evalLine("(setq b 10)")
+    x = @parser.evalLine("``,,b")
+    success,s,t = @parser.runParser(@parser.expr,"`,10")
+    assert_equal t, x
+  end
+
   test "quasiquote: unquote-splicing: 1" do
     x = @parser.evalLine("(setq b '(5 10))")
     x = @parser.evalLine("(setq c 20)")
@@ -256,5 +277,13 @@ class TestSchme < Test::Unit::TestCase
     x = @parser.evalLine("a");
     assert_equal Number.new(10), x
   end
+
+  test "def-macro: 5" do
+    @parser.evalLine("(def-macro myif (lambda (p t e) `(if ,p ,t ,e)))")
+    @parser.evalLine("(myif #t (setq a 10) (setq a 20))")
+    x = @parser.evalLine("a");
+    assert_equal Number.new(10), x
+  end
+
   
 end
