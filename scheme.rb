@@ -40,6 +40,10 @@ class Scheme
     Atom.new(str)
   end
 
+  def self.cons(h,t)
+    Cons.new(h,t)
+  end
+  
   def self.translate(env,expr,n)
     case 
     when expr.class == Cons
@@ -58,24 +62,25 @@ class Scheme
     car = expr.car
     case car.str
     when "quote"
-      Cons.new(car,translate(env,expr.cdr,n))
+      cons(car,
+           translate(env,expr.cdr,n))
     when "quasiquote"
-      Cons.new(car,translate(env,expr.cdr,n+1))
+      cons(car,
+           translate(env,expr.cdr,n+1))
     when "unquote"
       if n == 0
-        expr.cdr.car.eval(env)
-      else
-        Cons.new(car,translate(env,expr.cdr,n-1))
+      then expr.cdr.car.eval(env)
+      else cons(car,
+                translate(env,expr.cdr,n-1))
       end
     when "unquote-splicing"
-      if n == 0
-        expr.cdr.car.eval(env)
-      else
-        Cons.new(car,translate(env,expr.cdr,n-1))
+      if n == 0 then expr.cdr.car.eval(env)
+      else cons(car,
+                translate(env,expr.cdr,n-1))
       end
     else
-      Cons.new(translate(env,expr.car,n),
-               translate(env,expr.cdr,n))
+      cons(translate(env,expr.car,n),
+           translate(env,expr.cdr,n))
     end
   end
   
@@ -88,8 +93,8 @@ class Scheme
         translate(env,expr.cdr,n)
       )
     else
-      Cons.new(translate(env,expr.car,n),
-               translate(env,expr.cdr,n))
+      cons(translate(env,expr.car,n),
+           translate(env,expr.cdr,n))
     end
   end
 
@@ -114,7 +119,7 @@ class Scheme
     "cons" => prim     { |e,expr|
       car = expr.car
       cdr = expr.cdr.car
-      Cons.new(car,cdr)
+      cons(car,cdr)
     },
     "if" => syntax {
       |env,expr0|
@@ -128,20 +133,27 @@ class Scheme
       end
     },
     "let" => syntax {
-      |env0,exprs0|
+      |env,exprs0|
       assignments = exprs0.car
       exprs = exprs0.cdr
-      env = Env.new(env0)
+      syms = [];
+      args = []
       for asgn in assignments
         sym = asgn.car
-        val = asgn.cdr.car.eval(env0)
-        env.define(sym.str,val)
+        val = asgn.cdr.car
+        syms.push(sym)
+        args.push(val)
       end
-      ret = nil
-      for e in exprs
-        ret = e.eval(env)
-      end
-      ret
+      cons(
+        cons( 
+          atom("lambda"),
+          cons(
+            Cons.from_a(syms),
+            exprs
+          )
+        ),
+        Cons.from_a(args)
+      ).eval(env)
     },
     "setq" => syntax {
       |env,expr0|
@@ -261,13 +273,17 @@ class Scheme
 
   def mainLoop
     buff = ""
+    print "scheme> "
     begin
       loop do
         str=readline
         buff += str
-        if (pos = (buff =~ /;/)) != nil then
-          print evalLine(buff[0,pos]),"\n"
-          buff = ""
+        pos, w = evalLine0(buff)
+        if pos != nil
+          print w,"\n"
+          buff = buff[pos..-1]
+          print "scheme> "
+        else
         end
       end
     rescue EOFError
@@ -281,6 +297,15 @@ class Scheme
     w.eval(@root)
   end
 
+  def evalLine0(s)
+    success,s,w = runParser(@expr1,s)
+    if success 
+      [s.pos,w.eval(@root)]
+    else
+      nil
+    end
+  end
+  
 end
 
 if __FILE__ == $PROGRAM_NAME
